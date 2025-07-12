@@ -212,40 +212,6 @@ const translations: Translations = {
   }
 };
 
-// Language Toggle Component
-const LanguageToggle = ({ language, setLanguage }: { language: string; setLanguage: (lang: string) => void }) => {
-  return (
-    <div className="fixed top-4 right-4 z-[9999]">
-      <div className="flex items-center bg-gray-900/80 backdrop-blur-xl border border-white/20 rounded-xl p-1">
-        <motion.button
-          whileHover={{ scale: 1.05 }}
-          whileTap={{ scale: 0.95 }}
-          onClick={() => setLanguage('tr')}
-          className={`px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
-            language === 'tr'
-              ? 'bg-blue-500 text-white shadow-lg'
-              : 'text-gray-400 hover:text-white'
-          }`}
-        >
-          🇹🇷 TR
-        </motion.button>
-        <motion.button
-          whileHover={{ scale: 1.05 }}
-          whileTap={{ scale: 0.95 }}
-          onClick={() => setLanguage('en')}
-          className={`px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
-            language === 'en'
-              ? 'bg-blue-500 text-white shadow-lg'
-              : 'text-gray-400 hover:text-white'
-          }`}
-        >
-          🇺🇸 EN
-        </motion.button>
-      </div>
-    </div>
-  );
-};
-
 // Types
 interface GlobalMarketData {
   totalMarketCap: string;
@@ -993,32 +959,49 @@ const EnhancedUserProfile = ({ user, language }: { user: User | null; language: 
 
 // Main Component
 export default function HomePage() {
-  const [language, setLanguage] = useState<string>('tr');
   const [user, setUser] = useState<User | null>(null);
+  const [language, setLanguage] = useState<string>('tr');
   const [globalData, setGlobalData] = useState<GlobalMarketData>({
     totalMarketCap: '$0',
     totalVolume: '$0',
-    marketCapChange: '+0%',
-    volumeChange: '+0%',
+    marketCapChange: '0%',
+    volumeChange: '0%',
     btcDominance: '0%',
     ethDominance: '0%',
     activeCryptos: '0',
-    totalSupply: '0',
+    totalSupply: '$0',
     loading: true
   });
   const [trendingCoins, setTrendingCoins] = useState<TrendingCoin[]>([]);
+  const [topGainers, setTopGainers] = useState<TopMover[]>([]);
+  const [topLosers, setTopLosers] = useState<TopMover[]>([]);
   const [marketPulse, setMarketPulse] = useState<MarketPulse>({
-    sentiment: 'Yükleniyor...',
-    fearGreedIndex: 0,
-    fearGreedText: '',
+    sentiment: 'Neutral',
+    fearGreedIndex: 50,
+    fearGreedText: 'Neutral',
     lastUpdated: '',
     loading: true
   });
-  const [topGainers, setTopGainers] = useState<TopMover[]>([]);
-  const [topLosers, setTopLosers] = useState<TopMover[]>([]);
+  
   const router = useRouter();
-
   const t = translations[language];
+
+  // Listen for language changes from Layout
+  useEffect(() => {
+    const handleLanguageChange = (event: CustomEvent) => {
+      setLanguage(event.detail.language);
+    };
+
+    window.addEventListener('languageChange', handleLanguageChange as EventListener);
+    
+    // Get initial language from localStorage
+    const savedLanguage = localStorage.getItem('language') || 'tr';
+    setLanguage(savedLanguage);
+
+    return () => {
+      window.removeEventListener('languageChange', handleLanguageChange as EventListener);
+    };
+  }, []);
 
   useEffect(() => {
     const getUser = async () => {
@@ -1137,7 +1120,6 @@ export default function HomePage() {
 
   return (
     <Layout>
-      <LanguageToggle language={language} setLanguage={setLanguage} />
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 relative overflow-hidden">
         {/* Animated Background */}
         <div className="absolute inset-0">

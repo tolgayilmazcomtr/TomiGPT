@@ -33,6 +33,26 @@ export default function Analyze() {
   const [currentStep, setCurrentStep] = useState(0)
   const [completedSteps, setCompletedSteps] = useState<number[]>([])
   const [analysisComment, setAnalysisComment] = useState('')
+  const [language, setLanguage] = useState<'tr' | 'en'>('tr')
+
+  // Multi-language support
+  const t = (tr: string, en: string) => language === 'tr' ? tr : en
+
+  // Listen to language changes from Layout
+  useEffect(() => {
+    const handleLanguageChange = (event: any) => {
+      setLanguage(event.detail)
+    }
+    
+    // Load initial language from localStorage
+    const savedLanguage = localStorage.getItem('language') as 'tr' | 'en'
+    if (savedLanguage) {
+      setLanguage(savedLanguage)
+    }
+    
+    window.addEventListener('languageChange', handleLanguageChange)
+    return () => window.removeEventListener('languageChange', handleLanguageChange)
+  }, [])
 
   // Coin names mapping
   const coinNames: { [key: string]: string } = {
@@ -135,35 +155,97 @@ export default function Analyze() {
   }
 
   // Analysis steps for the powerful engine feel
-  const analysisStepsData = [
-    { step: 'Bağlantı Kurma', description: 'Binance API\'ye bağlanılıyor...', completed: false, details: 'WebSocket bağlantısı kuruldu' },
-    { step: 'Veri Çekme', description: 'Gerçek zamanlı piyasa verisi alınıyor...', completed: false, details: 'Son 1000 işlem analiz edildi' },
-    { step: 'RSI Hesaplama', description: 'Relative Strength Index hesaplanıyor...', completed: false, details: '14 periyot RSI: 67.3' },
-    { step: 'MACD Analizi', description: 'MACD ve sinyal hattı analiz ediliyor...', completed: false, details: 'MACD: 0.45, Signal: 0.38' },
-    { step: 'Bollinger Bands', description: 'Bollinger bantları hesaplanıyor...', completed: false, details: 'Üst band: $45,200, Alt band: $41,800' },
-    { step: 'Hacim Profili', description: 'İşlem hacmi trend analizi yapılıyor...', completed: false, details: '24s hacim: 2.3B USDT' },
-    { step: 'Sentiment Tarama', description: 'Sosyal medya ve haber sentiment analizi...', completed: false, details: 'Pozitif: %72, Negatif: %28' },
-    { step: 'AI Modeli', description: 'Makine öğrenmesi modeli çalışıyor...', completed: false, details: 'Neural network: 8 katman, 1.2M parametre' },
-    { step: 'Risk Matrisi', description: 'Risk-getiri oranı hesaplanıyor...', completed: false, details: 'Sharpe ratio: 1.8, Max drawdown: %12' },
-    { step: 'Sinyal Üretimi', description: 'Nihai AL/SAT/BEKLE sinyali üretiliyor...', completed: false, details: 'Güven skoru: %89' }
+  const getAnalysisSteps = () => [
+    { 
+      step: t('Bağlantı Kurma', 'Connecting'), 
+      description: t('Binance API\'ye bağlanılıyor...', 'Connecting to Binance API...'), 
+      completed: false, 
+      details: t('WebSocket bağlantısı kuruldu', 'WebSocket connection established')
+    },
+    { 
+      step: t('Veri Çekme', 'Data Fetching'), 
+      description: t('Gerçek zamanlı piyasa verisi alınıyor...', 'Fetching real-time market data...'), 
+      completed: false, 
+      details: t('Son 1000 işlem analiz edildi', 'Last 1000 transactions analyzed')
+    },
+    { 
+      step: t('RSI Hesaplama', 'RSI Calculation'), 
+      description: t('Relative Strength Index hesaplanıyor...', 'Calculating Relative Strength Index...'), 
+      completed: false, 
+      details: t('14 periyot RSI: 67.3', '14 period RSI: 67.3')
+    },
+    { 
+      step: t('MACD Analizi', 'MACD Analysis'), 
+      description: t('MACD ve sinyal hattı analiz ediliyor...', 'Analyzing MACD and signal line...'), 
+      completed: false, 
+      details: t('MACD: 0.45, Signal: 0.38', 'MACD: 0.45, Signal: 0.38')
+    },
+    { 
+      step: t('Bollinger Bands', 'Bollinger Bands'), 
+      description: t('Bollinger bantları hesaplanıyor...', 'Calculating Bollinger Bands...'), 
+      completed: false, 
+      details: t('Üst band: $45,200, Alt band: $41,800', 'Upper band: $45,200, Lower band: $41,800')
+    },
+    { 
+      step: t('Hacim Profili', 'Volume Profile'), 
+      description: t('İşlem hacmi trend analizi yapılıyor...', 'Analyzing volume trend...'), 
+      completed: false, 
+      details: t('24s hacim: 2.3B USDT', '24h volume: 2.3B USDT')
+    },
+    { 
+      step: t('Sentiment Tarama', 'Sentiment Analysis'), 
+      description: t('Sosyal medya ve haber sentiment analizi...', 'Social media and news sentiment analysis...'), 
+      completed: false, 
+      details: t('Pozitif: %72, Negatif: %28', 'Positive: 72%, Negative: 28%')
+    },
+    { 
+      step: t('AI Modeli', 'AI Model'), 
+      description: t('Makine öğrenmesi modeli çalışıyor...', 'Machine learning model running...'), 
+      completed: false, 
+      details: t('Neural network: 8 katman, 1.2M parametre', 'Neural network: 8 layers, 1.2M parameters')
+    },
+    { 
+      step: t('Risk Matrisi', 'Risk Matrix'), 
+      description: t('Risk-getiri oranı hesaplanıyor...', 'Calculating risk-return ratio...'), 
+      completed: false, 
+      details: t('Sharpe ratio: 1.8, Max drawdown: %12', 'Sharpe ratio: 1.8, Max drawdown: 12%')
+    },
+    { 
+      step: t('Sinyal Üretimi', 'Signal Generation'), 
+      description: t('Nihai AL/SAT/BEKLE sinyali üretiliyor...', 'Generating final BUY/SELL/HOLD signal...'), 
+      completed: false, 
+      details: t('Güven skoru: %89', 'Confidence score: 89%')
+    }
   ]
 
   const generateAnalysisComment = (result: any) => {
     const comments: { [key: string]: string[] } = {
-      'AL': [
+      'AL': language === 'tr' ? [
         `${result.coin.name} için güçlü bir AL sinyali tespit edildi. Teknik indikatörler yukarı yönlü momentum gösteriyor ve hacim artışı destekliyor. Bu fiyat seviyesinden girişler için uygun bir fırsat sunuyor.`,
         `${result.coin.name} analizi pozitif sonuçlar veriyor. RSI ve MACD indikatörleri AL sinyali verirken, Bollinger Bands alt bandından yukarı çıkış gösteriyor. Risk yönetimi ile birlikte değerlendirilebilir.`,
         `${result.coin.name} için teknik analiz AL yönünde. Piyasa sentiment'i pozitif, işlem hacmi artış trendinde. Kısa ve orta vadeli hedefler için uygun gözüküyor.`
+      ] : [
+        `A strong BUY signal has been detected for ${result.coin.name}. Technical indicators show upward momentum and volume increase supports this. This price level offers a suitable opportunity for entries.`,
+        `${result.coin.name} analysis shows positive results. RSI and MACD indicators give BUY signals while Bollinger Bands show upward breakout from lower band. Can be evaluated with risk management.`,
+        `Technical analysis for ${result.coin.name} is in BUY direction. Market sentiment is positive, trading volume is in upward trend. Looks suitable for short and medium term targets.`
       ],
-      'SAT': [
+      'SAT': language === 'tr' ? [
         `${result.coin.name} için SAT sinyali oluştu. Teknik indikatörler aşırı alım seviyesinde ve düzeltme beklentisi yüksek. Mevcut pozisyonlardan çıkış için uygun zaman olabilir.`,
         `${result.coin.name} analizi negatif trend gösteriyor. RSI yüksek seviyelerden geri çekiliyor, MACD histogram azalış gösteriyor. Satış baskısı artıyor.`,
         `${result.coin.name} için teknik görünüm zayıf. Hacim azalışı ve dirençle karşılaşma durumu mevcut. Kısa vadeli düşüş beklenebilir.`
+      ] : [
+        `A SELL signal has formed for ${result.coin.name}. Technical indicators are in overbought levels and correction expectation is high. This might be the right time to exit current positions.`,
+        `${result.coin.name} analysis shows negative trend. RSI is pulling back from high levels, MACD histogram shows decline. Selling pressure is increasing.`,
+        `Technical outlook for ${result.coin.name} is weak. Volume decline and resistance encounter situation exists. Short-term decline can be expected.`
       ],
-      'BEKLE': [
+      'BEKLE': language === 'tr' ? [
         `${result.coin.name} için net bir sinyal bulunmuyor. Piyasa kararsızlık gösteriyor ve yan trend hakim. Daha net sinyaller için bekleme öneriliyor.`,
         `${result.coin.name} analizi karışık sinyaller veriyor. Teknik indikatörler arasında uyumsuzluk var. Piyasa yönünü netleştirmek için beklemek mantıklı.`,
         `${result.coin.name} için mevcut durumda BEKLE stratejisi uygun. Önemli destek/direnç seviyelerine yakın, kırılım beklemek daha sağlıklı.`
+      ] : [
+        `No clear signal found for ${result.coin.name}. Market shows indecision and sideways trend dominates. Waiting for clearer signals is recommended.`,
+        `${result.coin.name} analysis gives mixed signals. There is disagreement between technical indicators. It makes sense to wait to clarify market direction.`,
+        `HOLD strategy is suitable for ${result.coin.name} in current situation. Close to important support/resistance levels, waiting for breakout is healthier.`
       ]
     }
     
@@ -204,13 +286,14 @@ export default function Analyze() {
     
     setAnalyzing(true)
     setResult(null)
-    setAnalysisSteps([...analysisStepsData])
+    setAnalysisSteps(getAnalysisSteps())
     setCurrentStep(0)
     setCompletedSteps([])
     setAnalysisComment('')
 
     // Simulate powerful analysis engine with progressive completion
-    for (let i = 0; i < analysisStepsData.length; i++) {
+    const steps = getAnalysisSteps()
+    for (let i = 0; i < steps.length; i++) {
       // Random delay between 600-1200ms for realistic feel
       await new Promise(resolve => setTimeout(resolve, 600 + Math.random() * 600))
       
@@ -291,13 +374,22 @@ export default function Analyze() {
   const shareToX = () => {
     if (!result) return
     
-    const text = `🚀 ${result.coin.name} (${result.coin.symbol}) Analiz Sonucu:
+    const text = t(
+      `🚀 ${result.coin.name} (${result.coin.symbol}) Analiz Sonucu:
     
 📊 Sinyal: ${result.signal}
 💎 Güven: %${result.confidence}
 ⏰ Zaman: ${timeframe}
     
-#TomiGPT #KriptoAnaliz #${result.coin.symbol} #AI`
+#TomiGPT #KriptoAnaliz #${result.coin.symbol} #AI`,
+      `🚀 ${result.coin.name} (${result.coin.symbol}) Analysis Result:
+    
+📊 Signal: ${result.signal}
+💎 Confidence: ${result.confidence}%
+⏰ Time: ${timeframe}
+    
+#TomiGPT #CryptoAnalysis #${result.coin.symbol} #AI`
+    )
     
     const url = `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}`
     window.open(url, '_blank')
@@ -306,13 +398,22 @@ export default function Analyze() {
   const shareToTelegram = () => {
     if (!result) return
     
-    const text = `🚀 ${result.coin.name} (${result.coin.symbol}) Analiz Sonucu:
+    const text = t(
+      `🚀 ${result.coin.name} (${result.coin.symbol}) Analiz Sonucu:
     
 📊 Sinyal: ${result.signal}
 💎 Güven: %${result.confidence}
 ⏰ Zaman: ${timeframe}
     
-TomiGPT ile analiz edildi 🤖`
+TomiGPT ile analiz edildi 🤖`,
+      `🚀 ${result.coin.name} (${result.coin.symbol}) Analysis Result:
+    
+📊 Signal: ${result.signal}
+💎 Confidence: ${result.confidence}%
+⏰ Time: ${timeframe}
+    
+Analyzed with TomiGPT 🤖`
+    )
     
     const url = `https://t.me/share/url?url=${encodeURIComponent('https://tomigpt.com')}&text=${encodeURIComponent(text)}`
     window.open(url, '_blank')
@@ -321,18 +422,27 @@ TomiGPT ile analiz edildi 🤖`
   const copyToClipboard = () => {
     if (!result) return
     
-    const text = `🚀 ${result.coin.name} (${result.coin.symbol}) Analiz Sonucu:
+    const text = t(
+      `🚀 ${result.coin.name} (${result.coin.symbol}) Analiz Sonucu:
     
 📊 Sinyal: ${result.signal}
 💎 Güven: %${result.confidence}
 ⏰ Zaman: ${timeframe}
     
 TomiGPT ile analiz edildi 🤖
+https://tomigpt.com`,
+      `🚀 ${result.coin.name} (${result.coin.symbol}) Analysis Result:
+    
+📊 Signal: ${result.signal}
+💎 Confidence: ${result.confidence}%
+⏰ Time: ${timeframe}
+    
+Analyzed with TomiGPT 🤖
 https://tomigpt.com`
+    )
     
     navigator.clipboard.writeText(text).then(() => {
-      // You could add a toast notification here
-      console.log('Analiz sonucu panoya kopyalandı!')
+      console.log(t('Analiz sonucu panoya kopyalandı!', 'Analysis result copied to clipboard!'))
     })
   }
 
@@ -388,19 +498,26 @@ https://tomigpt.com`
             >
               <div className="inline-flex items-center gap-3 px-6 py-3 bg-gradient-to-r from-blue-500/20 to-emerald-500/20 rounded-full border border-blue-500/30 mb-6">
                 <FiBarChart className="w-5 h-5 text-blue-400" />
-                <span className="text-blue-300 font-medium">AI Destekli Teknik Analiz</span>
+                <span className="text-blue-300 font-medium">
+                  {t('AI Destekli Teknik Analiz', 'AI-Powered Technical Analysis')}
+                </span>
               </div>
               
               <h1 className="text-6xl md:text-7xl font-bold mb-6">
                 <span className="bg-gradient-to-r from-blue-400 via-emerald-400 to-cyan-400 bg-clip-text text-transparent">
-                  Kripto Analiz
+                  {t('Kripto Analiz', 'Crypto Analysis')}
                 </span>
               </h1>
               
               <p className="text-xl md:text-2xl text-gray-300 max-w-3xl mx-auto leading-relaxed">
-                10 teknik indikatör ile güçlendirilmiş yapay zeka algoritması kullanarak
-                <span className="text-emerald-400 font-semibold"> AL • SAT • BEKLE </span>
-                sinyalleri alın
+                {t(
+                  '10 teknik indikatör ile güçlendirilmiş yapay zeka algoritması kullanarak',
+                  'Using artificial intelligence algorithm powered by 10 technical indicators'
+                )}
+                <span className="text-emerald-400 font-semibold">
+                  {t(' AL • SAT • BEKLE ', ' BUY • SELL • HOLD ')}
+                </span>
+                {t('sinyalleri alın', 'signals')}
               </p>
             </motion.div>
 
@@ -421,7 +538,9 @@ https://tomigpt.com`
                       <div className="p-3 bg-gradient-to-r from-blue-500/20 to-emerald-500/20 rounded-xl">
                         <FiTarget className="w-6 h-6 text-emerald-400" />
                       </div>
-                      <h2 className="text-2xl font-bold text-white">Hedef Kripto Para</h2>
+                      <h2 className="text-2xl font-bold text-white">
+                        {t('Hedef Kripto Para', 'Target Cryptocurrency')}
+                      </h2>
                     </div>
 
                     <div className="space-y-4">
@@ -448,7 +567,9 @@ https://tomigpt.com`
                                 </div>
                               </>
                             ) : (
-                              <div className="text-gray-400">Kripto para seçin...</div>
+                              <div className="text-gray-400">
+                                {t('Kripto para seçin...', 'Select cryptocurrency...')}
+                              </div>
                             )}
                           </div>
                           <FiChevronDown className={`w-5 h-5 text-gray-400 transition-transform ${showDropdown ? 'rotate-180' : ''}`} />
@@ -467,7 +588,7 @@ https://tomigpt.com`
                                   <FiSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
                                   <input
                                     type="text"
-                                    placeholder="Kripto para ara..."
+                                    placeholder={t('Kripto para ara...', 'Search cryptocurrency...')}
                                     value={searchTerm}
                                     onChange={(e) => setSearchTerm(e.target.value)}
                                     className="w-full pl-10 pr-4 py-2 bg-slate-700/50 border border-slate-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-blue-500/50"
@@ -510,7 +631,9 @@ https://tomigpt.com`
 
                       {/* Timeframe Selection */}
                       <div className="space-y-2">
-                        <label className="text-sm font-medium text-gray-300">Zaman Dilimi</label>
+                        <label className="text-sm font-medium text-gray-300">
+                          {t('Zaman Dilimi', 'Time Frame')}
+                        </label>
                         <div className="grid grid-cols-5 gap-2">
                           {['15m', '1h', '4h', '1d', '1w'].map((tf) => (
                             <button
@@ -530,8 +653,6 @@ https://tomigpt.com`
                     </div>
                   </div>
                 </motion.div>
-
-
 
                 {/* Analyze Button */}
                 <motion.div
@@ -560,12 +681,12 @@ https://tomigpt.com`
                       {analyzing ? (
                         <div className="flex items-center justify-center gap-3">
                           <div className="w-5 h-5 border-2 border-white/20 border-t-white rounded-full animate-spin" />
-                          Analiz Ediliyor...
+                          {t('Analiz Ediliyor...', 'Analyzing...')}
                         </div>
                       ) : (
                         <div className="flex items-center justify-center gap-3">
                           <FiZap className="w-5 h-5" />
-                          Analiz Başlat
+                          {t('Analiz Başlat', 'Start Analysis')}
                         </div>
                       )}
                     </motion.button>
@@ -589,9 +710,11 @@ https://tomigpt.com`
                         <div className="p-3 bg-gradient-to-r from-purple-500/20 to-pink-500/20 rounded-xl">
                           <FiCpu className="w-6 h-6 text-purple-400 animate-pulse" />
                         </div>
-                        <h2 className="text-2xl font-bold text-white">Analiz Motoru</h2>
+                        <h2 className="text-2xl font-bold text-white">
+                          {t('Analiz Motoru', 'Analysis Engine')}
+                        </h2>
                         <div className="ml-auto text-purple-400 text-sm">
-                          {completedSteps.length}/{analysisSteps.length} tamamlandı
+                          {completedSteps.length}/{analysisSteps.length} {t('tamamlandı', 'completed')}
                         </div>
                       </div>
 
@@ -671,7 +794,7 @@ https://tomigpt.com`
                             {result.coin.name} ({result.coin.symbol})
                           </div>
                           <div className="text-sm text-gray-400">
-                            Güven: %{result.confidence} • Zaman: {result.timeframe}
+                            {t('Güven', 'Confidence')}: %{result.confidence} • {t('Zaman', 'Time')}: {result.timeframe}
                           </div>
                         </div>
                       </div>
@@ -685,7 +808,9 @@ https://tomigpt.com`
                           <div className="p-3 bg-gradient-to-r from-cyan-500/20 to-blue-500/20 rounded-xl">
                             <FiMessageCircle className="w-6 h-6 text-cyan-400" />
                           </div>
-                          <h2 className="text-2xl font-bold text-white">AI Analiz Yorumu</h2>
+                          <h2 className="text-2xl font-bold text-white">
+                            {t('AI Analiz Yorumu', 'AI Analysis Comment')}
+                          </h2>
                         </div>
                         
                         <div className="p-6 bg-slate-800/50 rounded-lg border border-slate-700/50">
@@ -702,7 +827,7 @@ https://tomigpt.com`
                       <div className="relative bg-slate-900/90 backdrop-blur-xl rounded-2xl border border-slate-700/50 p-8">
                         <h3 className="text-2xl font-bold text-white mb-6 flex items-center gap-3">
                           <FiBarChart className="w-6 h-6 text-emerald-400" />
-                          İndikatör Detayları
+                          {t('İndikatör Detayları', 'Indicator Details')}
                         </h3>
                         
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -721,7 +846,7 @@ https://tomigpt.com`
                                 </span>
                               </div>
                               <div className="text-sm text-gray-400">
-                                Değer: {data.value.toFixed(2)} • Ağırlık: {data.weight}x
+                                {t('Değer', 'Value')}: {data.value.toFixed(2)} • {t('Ağırlık', 'Weight')}: {data.weight}x
                               </div>
                             </motion.div>
                           ))}
@@ -737,7 +862,9 @@ https://tomigpt.com`
                           <div className="p-3 bg-gradient-to-r from-blue-500/20 to-purple-500/20 rounded-xl">
                             <FiShare2 className="w-6 h-6 text-blue-400" />
                           </div>
-                          <h2 className="text-2xl font-bold text-white">Sonucu Paylaş</h2>
+                          <h2 className="text-2xl font-bold text-white">
+                            {t('Sonucu Paylaş', 'Share Result')}
+                          </h2>
                         </div>
 
                         <div className="grid grid-cols-3 gap-4">
@@ -760,7 +887,7 @@ https://tomigpt.com`
                             className="flex items-center justify-center gap-3 p-4 bg-gradient-to-r from-green-500/20 to-emerald-500/20 border border-green-500/30 rounded-lg hover:from-green-500/30 hover:to-emerald-500/30 transition-all text-green-400 hover:text-green-300"
                           >
                             <FiCopy className="w-5 h-5" />
-                            <span className="hidden sm:inline">Kopyala</span>
+                            <span className="hidden sm:inline">{t('Kopyala', 'Copy')}</span>
                           </button>
                         </div>
                       </div>
@@ -778,9 +905,11 @@ https://tomigpt.com`
                       <div className="w-20 h-20 bg-gradient-to-r from-slate-500/20 to-gray-500/20 rounded-full flex items-center justify-center mx-auto mb-6">
                         <FiBarChart className="w-10 h-10 text-gray-400" />
                       </div>
-                      <h3 className="text-xl font-semibold text-gray-300 mb-2">Analiz Bekleniyor</h3>
+                      <h3 className="text-xl font-semibold text-gray-300 mb-2">
+                        {t('Analiz Bekleniyor', 'Analysis Pending')}
+                      </h3>
                       <p className="text-gray-500">
-                        Kripto para seçip analiz başlatın
+                        {t('Kripto para seçip analiz başlatın', 'Select cryptocurrency and start analysis')}
                       </p>
                     </div>
                   </motion.div>
