@@ -8,7 +8,7 @@ module.exports = {
   theme: {
     extend: {
       fontFamily: {
-        sans: ['var(--font-inter)', 'system-ui', '-apple-system', 'sans-serif'],
+        sans: ['Roboto', 'system-ui', '-apple-system', 'sans-serif'],
       },
       colors: {
         border: 'hsl(var(--border))',
@@ -51,14 +51,13 @@ module.exports = {
         sm: 'calc(var(--radius) - 4px)',
       },
       animation: {
-        'float': 'float 20s ease-in-out infinite',
-        'float-reverse': 'float 25s ease-in-out infinite reverse',
+        'float': 'float 30s ease-in-out infinite',
+        'float-reverse': 'float-reverse 35s ease-in-out infinite',
       },
       keyframes: {
         float: {
           '0%, 100%': { transform: 'translateY(0px) rotate(0deg)' },
-          '33%': { transform: 'translateY(-20px) rotate(1deg)' },
-          '66%': { transform: 'translateY(-10px) rotate(-1deg)' },
+          '50%': { transform: 'translateY(-10px) rotate(0.5deg)' },
         },
       },
     },
