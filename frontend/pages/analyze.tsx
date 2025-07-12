@@ -184,7 +184,7 @@ export default function Analyze() {
       })
     })
     setCoinList(coins)
-    setFilteredCoins(coins.slice(0, 50))
+    setFilteredCoins(coins) // Tüm coinleri göster
   }, [])
 
   useEffect(() => {
@@ -193,9 +193,9 @@ export default function Analyze() {
         coin.symbol.toLowerCase().includes(searchTerm.toLowerCase()) ||
         coin.name.toLowerCase().includes(searchTerm.toLowerCase())
       )
-      setFilteredCoins(filtered.slice(0, 50))
+      setFilteredCoins(filtered) // Arama sonuçlarında tüm eşleşmeleri göster
     } else {
-      setFilteredCoins(coinList.slice(0, 50))
+      setFilteredCoins(coinList) // Varsayılan olarak tüm coinleri göster
     }
   }, [searchTerm, coinList])
 
@@ -365,7 +365,7 @@ https://tomigpt.com`
 
   return (
     <Layout>
-      <div className="min-h-screen relative overflow-y-auto">
+      <div className="min-h-screen relative overflow-y-auto scroll-smooth">
         {/* Ultra Premium Background */}
         <div className="fixed inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-slate-900 via-slate-800 to-slate-900"></div>
         
@@ -382,8 +382,9 @@ https://tomigpt.com`
             <motion.div
               initial={{ opacity: 0, y: 30 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.8 }}
+              transition={{ duration: 0.8, ease: "easeOut" }}
               className="text-center mb-16"
+              style={{ willChange: 'auto' }}
             >
               <div className="inline-flex items-center gap-3 px-6 py-3 bg-gradient-to-r from-blue-500/20 to-emerald-500/20 rounded-full border border-blue-500/30 mb-6">
                 <FiBarChart className="w-5 h-5 text-blue-400" />
@@ -405,13 +406,14 @@ https://tomigpt.com`
 
             <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
               {/* Left Panel */}
-              <div className="space-y-8">
+              <div className="space-y-8" style={{ transform: 'translateZ(0)' }}>
                 {/* Coin Selection */}
                 <motion.div
                   initial={{ opacity: 0, x: -30 }}
                   animate={{ opacity: 1, x: 0 }}
-                  transition={{ duration: 0.8 }}
+                  transition={{ duration: 0.8, ease: "easeOut" }}
                   className="relative group z-[9998]"
+                  style={{ willChange: 'auto' }}
                 >
                   <div className="absolute -inset-1 bg-gradient-to-r from-blue-500/50 to-emerald-500/50 rounded-2xl blur opacity-25 group-hover:opacity-75 transition duration-1000 group-hover:duration-200"></div>
                   <div className="relative bg-slate-900/90 backdrop-blur-xl rounded-2xl border border-slate-700/50 p-8 z-[9998]">
@@ -472,7 +474,7 @@ https://tomigpt.com`
                                   />
                                 </div>
                               </div>
-                              <div className="max-h-64 overflow-y-auto">
+                              <div className="max-h-64 overflow-y-auto" style={{ transform: 'translateZ(0)', willChange: 'scroll-position' }}>
                                 {filteredCoins.map((coin) => (
                                   <button
                                     key={coin.symbol}
@@ -538,8 +540,9 @@ https://tomigpt.com`
                     opacity: 1, 
                     y: analyzing ? 30 : 0 
                   }}
-                  transition={{ duration: 0.5 }}
+                  transition={{ duration: 0.5, ease: "easeOut" }}
                   className="relative group z-[9997]"
+                  style={{ willChange: 'auto' }}
                 >
                   <div className="absolute -inset-1 bg-gradient-to-r from-emerald-500/50 to-cyan-500/50 rounded-2xl blur opacity-25 group-hover:opacity-75 transition duration-1000 group-hover:duration-200"></div>
                   <div className="relative bg-slate-900/90 backdrop-blur-xl rounded-2xl border border-slate-700/50 p-8 z-[9997]">
