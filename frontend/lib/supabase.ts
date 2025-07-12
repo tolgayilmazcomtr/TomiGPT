@@ -1,154 +1,220 @@
 import { createClient } from '@supabase/supabase-js'
 import type { Database } from '@/types/database'
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co'
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBsYWNlaG9sZGVyIiwicm9sZSI6ImFub24iLCJpYXQiOjE2NDYzMjc0MjgsImV4cCI6MTk2MTkwMzQyOH0.rJ8Sm4TIuKHxqQKYgNLmQhgfWWCO3LF2bLSKtKQOjuM'
+// Gerçek Supabase credentials
+const supabaseUrl = 'https://xtkpecdcztkvujennols.supabase.co'
+const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh0a3BlY2RjenRrdnVqZW5ub2xzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTIzMzA1MjYsImV4cCI6MjA2NzkwNjUyNn0.9qk3ynKPb5vUQIkreWWXLVpQ9MD7mjVFI6E9hUB6pa4'
 
-// Development mode check
-const isDevMode = process.env.NEXT_PUBLIC_DEV_MODE === 'true'
-const hasValidCredentials = !supabaseUrl.includes('placeholder') && 
-                           !supabaseUrl.includes('your_supabase_url_here') && 
-                           !supabaseKey.includes('placeholder') && 
-                           !supabaseKey.includes('your_supabase_anon_key_here')
-
-// Debug: Supabase geliştirme modunda çalışıyor
-if (isDevMode && !hasValidCredentials) {
-  console.log('🔶 TomiGPT geliştirme modunda çalışıyor - demo veriler kullanılacak')
-}
-
-// Demo user data for development
-const demoUser = {
-  id: 'demo-user-id',
-  email: 'demo@tomigpt.com',
-  user_metadata: {
-    full_name: 'Demo Kullanıcı',
-    avatar_url: null,
-  },
-  app_metadata: {},
-  aud: 'authenticated',
-  role: 'authenticated',
-  created_at: new Date().toISOString(),
-  updated_at: new Date().toISOString(),
-}
-
-// Demo session data
-const demoSession = {
-  access_token: 'demo-access-token',
-  refresh_token: 'demo-refresh-token',
-  expires_in: 3600,
-  expires_at: Math.floor(Date.now() / 1000) + 3600,
-  token_type: 'bearer',
-  user: demoUser,
-}
-
-// State management for demo mode
-let mockUserState: any = null
-let mockSessionState: any = null
-
-// Mock client for development mode
-const mockClient = {
+// Create Supabase client
+export const supabase = createClient<Database>(supabaseUrl, supabaseKey, {
   auth: {
-    signUp: () => Promise.resolve({ data: { user: demoUser, session: demoSession }, error: null }),
-    signInWithPassword: (credentials: { email: string; password: string }) => {
-      // Demo hesap kontrolü
-      if (credentials.email === 'demo@tomigpt.com' && credentials.password === 'demo123') {
-        mockUserState = demoUser
-        mockSessionState = demoSession
-        // Store in localStorage for persistence
-        if (typeof window !== 'undefined') {
-          localStorage.setItem('tomigpt-demo-user', JSON.stringify(demoUser))
-          localStorage.setItem('tomigpt-demo-session', JSON.stringify(demoSession))
-        }
-        return Promise.resolve({ data: { user: demoUser, session: demoSession }, error: null })
-      }
-      return Promise.resolve({ data: { user: null, session: null }, error: { message: 'Geçersiz email veya şifre' } })
-    },
-    signInWithOAuth: () => Promise.resolve({ data: null, error: null }),
-    signOut: () => {
-      mockUserState = null
-      mockSessionState = null
-      if (typeof window !== 'undefined') {
-        localStorage.removeItem('tomigpt-demo-user')
-        localStorage.removeItem('tomigpt-demo-session')
-      }
-      return Promise.resolve({ error: null })
-    },
-    getUser: () => {
-      // Check localStorage for persisted demo user
-      if (typeof window !== 'undefined' && !mockUserState) {
-        const storedUser = localStorage.getItem('tomigpt-demo-user')
-        if (storedUser) {
-          mockUserState = JSON.parse(storedUser)
-        }
-      }
-      return Promise.resolve({ data: { user: mockUserState }, error: null })
-    },
-    getSession: () => {
-      // Check localStorage for persisted demo session
-      if (typeof window !== 'undefined' && !mockSessionState) {
-        const storedSession = localStorage.getItem('tomigpt-demo-session')
-        if (storedSession) {
-          mockSessionState = JSON.parse(storedSession)
-        }
-      }
-      return Promise.resolve({ data: { session: mockSessionState }, error: null })
-    },
-    onAuthStateChange: (callback: (event: string, session: any) => void) => {
-      // Trigger initial callback with current state
-      setTimeout(() => {
-        if (mockSessionState) {
-          callback('SIGNED_IN', mockSessionState)
-        } else {
-          callback('SIGNED_OUT', null)
-        }
-      }, 100)
-      
-      return { data: { subscription: { unsubscribe: () => {} } } }
-    },
+    autoRefreshToken: true,
+    persistSession: true,
+    detectSessionInUrl: true,
   },
-  from: () => ({
-    select: () => Promise.resolve({ data: [], error: null }),
-    insert: () => Promise.resolve({ data: null, error: null }),
-    update: () => Promise.resolve({ data: null, error: null }),
-    delete: () => Promise.resolve({ data: null, error: null }),
-  }),
-} as any
+})
 
-let supabaseClient: any = null
+// Auth helper functions
+export const authHelpers = {
+  // Sign up with email
+  signUp: async (email: string, password: string, metadata?: { fullName?: string }) => {
+    try {
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            full_name: metadata?.fullName || '',
+          },
+        },
+      })
+      return { data, error }
+    } catch (error) {
+      return { data: null, error }
+    }
+  },
 
-export const createSupabaseClient = () => {
-  // Return existing client if already created
-  if (supabaseClient) {
-    return supabaseClient
-  }
-  
-  // In development mode with placeholder credentials, return mock client
-  if (isDevMode && !hasValidCredentials) {
-    console.warn('🔶 Supabase çalışıyor geliştirme modunda - gerçek veriler kullanılmıyor')
-    supabaseClient = mockClient
-    return supabaseClient
-  }
-  
-  // Create real Supabase client
-  supabaseClient = createClient<Database>(supabaseUrl, supabaseKey, {
-    auth: {
-      autoRefreshToken: true,
-      persistSession: true,
-      detectSessionInUrl: true,
-    },
-  })
-  
-  return supabaseClient
+  // Sign in with email and password
+  signIn: async (email: string, password: string) => {
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      })
+      return { data, error }
+    } catch (error) {
+      return { data: null, error }
+    }
+  },
+
+  // Sign in with Google
+  signInWithGoogle: async () => {
+    try {
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: `${window.location.origin}/auth/callback`,
+        },
+      })
+      return { data, error }
+    } catch (error) {
+      return { data: null, error }
+    }
+  },
+
+  // Sign out
+  signOut: async () => {
+    try {
+      const { error } = await supabase.auth.signOut()
+      return { error }
+    } catch (error) {
+      return { error }
+    }
+  },
+
+  // Reset password
+  resetPassword: async (email: string) => {
+    try {
+      const { data, error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/auth/reset-password`,
+      })
+      return { data, error }
+    } catch (error) {
+      return { data: null, error }
+    }
+  },
+
+  // Update password
+  updatePassword: async (password: string) => {
+    try {
+      const { data, error } = await supabase.auth.updateUser({
+        password,
+      })
+      return { data, error }
+    } catch (error) {
+      return { data: null, error }
+    }
+  },
+
+  // Get current user
+  getCurrentUser: async () => {
+    try {
+      const { data: { user }, error } = await supabase.auth.getUser()
+      return { user, error }
+    } catch (error) {
+      return { user: null, error }
+    }
+  },
+
+  // Get current session
+  getCurrentSession: async () => {
+    try {
+      const { data: { session }, error } = await supabase.auth.getSession()
+      return { session, error }
+    } catch (error) {
+      return { session: null, error }
+    }
+  },
 }
 
-// Lazy getter for supabase client
-export const getSupabaseClient = () => createSupabaseClient() 
+// Database helper functions
+export const dbHelpers = {
+  // Get user profile
+  getUserProfile: async (userId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('user_profiles')
+        .select('*')
+        .eq('id', userId)
+        .single()
+      return { data, error }
+    } catch (error) {
+      return { data: null, error }
+    }
+  },
 
-// Default export for direct usage
-export const supabase = createSupabaseClient()
+  // Update user profile
+  updateUserProfile: async (userId: string, updates: any) => {
+    try {
+      const { data, error } = await supabase
+        .from('user_profiles')
+        .update({ ...updates, updated_at: new Date().toISOString() })
+        .eq('id', userId)
+        .select()
+        .single()
+      return { data, error }
+    } catch (error) {
+      return { data: null, error }
+    }
+  },
 
-// Demo account credentials for easy access
-export const DEMO_CREDENTIALS = {
-  email: 'demo@tomigpt.com',
-  password: 'demo123'
-} 
+  // Get analysis history
+  getAnalysisHistory: async (userId: string, limit: number = 20) => {
+    try {
+      const { data, error } = await supabase
+        .from('analysis_history')
+        .select('*')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false })
+        .limit(limit)
+      return { data, error }
+    } catch (error) {
+      return { data: null, error }
+    }
+  },
+
+  // Save analysis result
+  saveAnalysis: async (analysisData: {
+    user_id: string
+    coin_symbol: string
+    coin_name: string
+    timeframe: string
+    signal: string
+    total_score: number
+    confidence_level: string
+    price_at_analysis: number
+    indicators_data: any
+    analysis_text?: string
+  }) => {
+    try {
+      const { data, error } = await supabase
+        .from('analysis_history')
+        .insert([analysisData])
+        .select()
+        .single()
+      return { data, error }
+    } catch (error) {
+      return { data: null, error }
+    }
+  },
+
+  // Check and increment analysis count
+  checkAnalysisLimit: async (userId: string) => {
+    try {
+      const { data, error } = await supabase.rpc('increment_analysis_count', {
+        user_uuid: userId
+      })
+      return { canAnalyze: data, error }
+    } catch (error) {
+      return { canAnalyze: false, error }
+    }
+  },
+
+  // Get daily usage
+  getDailyUsage: async (userId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('daily_usage')
+        .select('*')
+        .eq('user_id', userId)
+        .eq('usage_date', new Date().toISOString().split('T')[0])
+        .single()
+      return { data, error }
+    } catch (error) {
+      return { data: null, error }
+    }
+  },
+}
+
+// Default export for backward compatibility
+export default supabase 

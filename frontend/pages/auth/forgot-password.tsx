@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { FiMail, FiArrowRight, FiArrowLeft, FiCheck, FiShield } from 'react-icons/fi';
-import { supabase } from '../../lib/supabase';
+import { authHelpers } from '../../lib/supabase';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
 import { toast } from 'react-hot-toast';
@@ -17,19 +17,18 @@ export default function ForgotPassword() {
     setIsLoading(true);
 
     try {
-      const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/auth/reset-password`,
-      });
+      const { error } = await authHelpers.resetPassword(email);
 
       if (error) {
-        toast.error(error.message);
+        const errorMessage = typeof error === 'string' ? error : (error as any)?.message || 'E-posta gönderme hatası';
+        toast.error(errorMessage);
         return;
       }
 
       setIsEmailSent(true);
       toast.success('Şifre sıfırlama e-postası gönderildi!');
-    } catch (error) {
-      toast.error('E-posta gönderilirken bir hata oluştu.');
+    } catch (error: any) {
+      toast.error(error?.message || 'E-posta gönderilirken bir hata oluştu.');
     } finally {
       setIsLoading(false);
     }
@@ -118,17 +117,19 @@ export default function ForgotPassword() {
                           type="email"
                           value={email}
                           onChange={(e) => setEmail(e.target.value)}
-                          required
-                          className="w-full pl-12 pr-4 py-4 bg-slate-800/50 border border-slate-600/50 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500/50 transition-all"
+                          className="w-full pl-12 pr-4 py-4 bg-slate-800/50 border border-slate-600/50 rounded-xl text-white placeholder-gray-400 focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 transition-all duration-300"
                           placeholder="kayitli@email.com"
+                          required
                         />
                       </div>
                     </div>
 
-                    <button
+                    <motion.button
                       type="submit"
                       disabled={!email || isLoading}
-                      className="group/btn relative w-full overflow-hidden rounded-2xl bg-gradient-to-r from-orange-500 via-emerald-500 to-blue-500 p-[2px] disabled:opacity-50 disabled:cursor-not-allowed hover:scale-105 transition-transform"
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                      className="group/btn relative w-full overflow-hidden rounded-2xl bg-gradient-to-r from-orange-500 via-emerald-500 to-blue-500 p-[2px] disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       <div className="relative bg-slate-900 rounded-2xl px-6 py-4 transition-all duration-300 group-hover/btn:bg-transparent">
                         <div className="flex items-center justify-center gap-3">
@@ -140,12 +141,12 @@ export default function ForgotPassword() {
                           ) : (
                             <>
                               <span className="text-white font-bold">Sıfırlama Linki Gönder</span>
-                              <FiArrowRight className="w-5 h-5 text-white group-hover/btn:scale-110 transition-transform" />
+                              <FiArrowRight className="w-5 h-5 text-white group-hover/btn:translate-x-1 transition-transform" />
                             </>
                           )}
                         </div>
                       </div>
-                    </button>
+                    </motion.button>
                   </motion.form>
 
                   {/* Help Text */}

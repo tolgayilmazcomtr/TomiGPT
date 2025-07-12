@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { FiMail, FiLock, FiEye, FiEyeOff, FiArrowRight, FiArrowLeft, FiUser, FiShield, FiCheck } from 'react-icons/fi';
 import { FaGoogle } from 'react-icons/fa';
-import { supabase } from '../../lib/supabase';
+import { authHelpers } from '../../lib/supabase';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
 import { toast } from 'react-hot-toast';
@@ -22,7 +22,7 @@ export default function Register() {
   useEffect(() => {
     // Check if user is already logged in
     const checkUser = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
+      const { user } = await authHelpers.getCurrentUser();
       if (user) {
         router.push('/');
       }
@@ -52,27 +52,20 @@ export default function Register() {
     setIsLoading(true);
 
     try {
-      const { data, error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          data: {
-            full_name: fullName,
-          }
-        }
-      });
+      const { data, error } = await authHelpers.signUp(email, password, { fullName });
 
       if (error) {
-        toast.error(error.message);
+        const errorMessage = typeof error === 'string' ? error : (error as any)?.message || 'Kayıt hatası';
+        toast.error(errorMessage);
         return;
       }
 
-      if (data.user) {
+      if (data?.user) {
         toast.success('Kayıt başarılı! E-posta adresinizi kontrol edin.');
         router.push('/auth/login');
       }
-    } catch (error) {
-      toast.error('Kayıt olurken bir hata oluştu.');
+    } catch (error: any) {
+      toast.error(error?.message || 'Kayıt olurken bir hata oluştu.');
     } finally {
       setIsLoading(false);
     }
@@ -82,18 +75,15 @@ export default function Register() {
     setIsGoogleLoading(true);
     
     try {
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
-        options: {
-          redirectTo: `${window.location.origin}/`
-        }
-      });
+      const { error } = await authHelpers.signInWithGoogle();
 
       if (error) {
-        toast.error(error.message);
+        const errorMessage = typeof error === 'string' ? error : (error as any)?.message || 'Google kayıt hatası';
+        toast.error(errorMessage);
       }
-    } catch (error) {
-      toast.error('Google ile kayıt olurken bir hata oluştu.');
+      // OAuth will redirect to callback page
+    } catch (error: any) {
+      toast.error(error?.message || 'Google ile kayıt olurken bir hata oluştu.');
     } finally {
       setIsGoogleLoading(false);
     }
@@ -206,9 +196,9 @@ export default function Register() {
                       type="text"
                       value={fullName}
                       onChange={(e) => setFullName(e.target.value)}
-                      required
-                      className="w-full pl-12 pr-4 py-4 bg-slate-800/50 border border-slate-600/50 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500/50 transition-all"
+                      className="w-full pl-12 pr-4 py-4 bg-slate-800/50 border border-slate-600/50 rounded-xl text-white placeholder-gray-400 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition-all duration-300"
                       placeholder="Adınız ve soyadınız"
+                      required
                     />
                   </div>
                 </div>
@@ -224,9 +214,9 @@ export default function Register() {
                       type="email"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
-                      required
-                      className="w-full pl-12 pr-4 py-4 bg-slate-800/50 border border-slate-600/50 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500/50 transition-all"
+                      className="w-full pl-12 pr-4 py-4 bg-slate-800/50 border border-slate-600/50 rounded-xl text-white placeholder-gray-400 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition-all duration-300"
                       placeholder="ornek@email.com"
+                      required
                     />
                   </div>
                 </div>
@@ -242,49 +232,41 @@ export default function Register() {
                       type={showPassword ? 'text' : 'password'}
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
-                      required
-                      className="w-full pl-12 pr-12 py-4 bg-slate-800/50 border border-slate-600/50 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500/50 transition-all"
+                      className="w-full pl-12 pr-12 py-4 bg-slate-800/50 border border-slate-600/50 rounded-xl text-white placeholder-gray-400 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition-all duration-300"
                       placeholder="En az 6 karakter"
+                      required
                     />
                     <button
                       type="button"
                       onClick={() => setShowPassword(!showPassword)}
                       className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-white transition-colors"
                     >
-                      {showPassword ? (
-                        <FiEyeOff className="w-5 h-5" />
-                      ) : (
-                        <FiEye className="w-5 h-5" />
-                      )}
+                      {showPassword ? <FiEyeOff className="w-5 h-5" /> : <FiEye className="w-5 h-5" />}
                     </button>
                   </div>
                 </div>
 
                 <div>
                   <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-300 mb-3">
-                    Şifre Tekrar
+                    Şifre Onayı
                   </label>
                   <div className="relative">
-                    <FiLock className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+                    <FiShield className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
                     <input
                       id="confirmPassword"
                       type={showConfirmPassword ? 'text' : 'password'}
                       value={confirmPassword}
                       onChange={(e) => setConfirmPassword(e.target.value)}
-                      required
-                      className="w-full pl-12 pr-12 py-4 bg-slate-800/50 border border-slate-600/50 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500/50 transition-all"
+                      className="w-full pl-12 pr-12 py-4 bg-slate-800/50 border border-slate-600/50 rounded-xl text-white placeholder-gray-400 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition-all duration-300"
                       placeholder="Şifrenizi tekrar girin"
+                      required
                     />
                     <button
                       type="button"
                       onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                       className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-white transition-colors"
                     >
-                      {showConfirmPassword ? (
-                        <FiEyeOff className="w-5 h-5" />
-                      ) : (
-                        <FiEye className="w-5 h-5" />
-                      )}
+                      {showConfirmPassword ? <FiEyeOff className="w-5 h-5" /> : <FiEye className="w-5 h-5" />}
                     </button>
                   </div>
                 </div>
@@ -293,15 +275,15 @@ export default function Register() {
                   <button
                     type="button"
                     onClick={() => setAcceptTerms(!acceptTerms)}
-                    className={`relative flex items-center justify-center w-5 h-5 rounded border-2 transition-all ${
-                      acceptTerms
-                        ? 'bg-gradient-to-r from-emerald-500 to-blue-500 border-emerald-500'
-                        : 'border-slate-600 hover:border-slate-500'
+                    className={`flex-shrink-0 mt-1 w-5 h-5 rounded border-2 transition-all duration-200 ${
+                      acceptTerms 
+                        ? 'bg-emerald-500 border-emerald-500' 
+                        : 'border-slate-600 hover:border-emerald-500'
                     }`}
                   >
                     {acceptTerms && <FiCheck className="w-3 h-3 text-white" />}
                   </button>
-                  <p className="text-sm text-gray-300 leading-relaxed">
+                  <label className="text-sm text-gray-300 leading-relaxed">
                     <Link href="/terms" className="text-emerald-400 hover:text-emerald-300 transition-colors">
                       Kullanım Şartları
                     </Link>
@@ -310,38 +292,40 @@ export default function Register() {
                       Gizlilik Politikası
                     </Link>
                     'nı okudum ve kabul ediyorum.
-                  </p>
+                  </label>
                 </div>
 
-                <button
+                <motion.button
                   type="submit"
-                  disabled={!fullName || !email || !password || !confirmPassword || !acceptTerms || isLoading}
-                  className="group/btn relative w-full overflow-hidden rounded-2xl bg-gradient-to-r from-emerald-500 via-blue-500 to-cyan-500 p-[2px] disabled:opacity-50 disabled:cursor-not-allowed hover:scale-105 transition-transform"
+                  disabled={isLoading || !acceptTerms}
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  className="group/btn relative w-full overflow-hidden rounded-2xl bg-gradient-to-r from-emerald-500 to-blue-500 p-[2px] disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <div className="relative bg-slate-900 rounded-2xl px-6 py-4 transition-all duration-300 group-hover/btn:bg-transparent">
                     <div className="flex items-center justify-center gap-3">
                       {isLoading ? (
                         <>
                           <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                          <span className="text-white font-bold">Hesap oluşturuluyor...</span>
+                          <span className="text-white font-bold">Kayıt olunuyor...</span>
                         </>
                       ) : (
                         <>
-                          <span className="text-white font-bold">Hesap Oluştur</span>
-                          <FiArrowRight className="w-5 h-5 text-white group-hover/btn:scale-110 transition-transform" />
+                          <span className="text-white font-bold">Kayıt Ol</span>
+                          <FiArrowRight className="w-5 h-5 text-white group-hover/btn:translate-x-1 transition-transform" />
                         </>
                       )}
                     </div>
                   </div>
-                </button>
+                </motion.button>
               </motion.form>
 
               {/* Login Link */}
               <motion.div
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
-                transition={{ duration: 0.6, delay: 0.3 }}
-                className="text-center mt-8"
+                transition={{ duration: 0.6, delay: 0.4 }}
+                className="mt-8 text-center"
               >
                 <p className="text-gray-400">
                   Zaten hesabınız var mı?{' '}
@@ -349,30 +333,9 @@ export default function Register() {
                     href="/auth/login"
                     className="text-emerald-400 hover:text-emerald-300 font-medium transition-colors"
                   >
-                    Giriş yapın
+                    Giriş Yap
                   </Link>
                 </p>
-              </motion.div>
-
-              {/* Features */}
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.6, delay: 0.4 }}
-                className="mt-8 pt-6 border-t border-slate-600/30"
-              >
-                <div className="grid grid-cols-1 gap-4">
-                  {[
-                    { icon: FiShield, text: 'Güvenli ve şifrelenmiş veriler' },
-                    { icon: FiUser, text: 'Ücretsiz başlangıç hesabı' },
-                    { icon: FiCheck, text: 'AI destekli teknik analiz' }
-                  ].map((feature, index) => (
-                    <div key={index} className="flex items-center gap-3 text-sm text-gray-400">
-                      <feature.icon className="w-4 h-4 text-emerald-400 flex-shrink-0" />
-                      <span>{feature.text}</span>
-                    </div>
-                  ))}
-                </div>
               </motion.div>
             </div>
           </motion.div>

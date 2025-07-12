@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { FiMail, FiLock, FiEye, FiEyeOff, FiArrowRight, FiArrowLeft, FiPlay, FiShield, FiZap } from 'react-icons/fi';
+import { FiMail, FiLock, FiEye, FiEyeOff, FiArrowRight, FiArrowLeft, FiShield, FiZap } from 'react-icons/fi';
 import { FaGoogle } from 'react-icons/fa';
-import { supabase, DEMO_CREDENTIALS } from '../../lib/supabase';
+import { authHelpers } from '../../lib/supabase';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
 import { toast } from 'react-hot-toast';
@@ -13,19 +13,26 @@ export default function Login() {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
-  const [isDemoLoading, setIsDemoLoading] = useState(false);
   const router = useRouter();
 
   useEffect(() => {
     // Check if user is already logged in
     const checkUser = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
+      const { user } = await authHelpers.getCurrentUser();
       if (user) {
         router.push('/');
       }
     };
     
     checkUser();
+
+    // Check for error query parameter
+    const { error } = router.query;
+    if (error === 'auth_failed') {
+      toast.error('Giriş işlemi başarısız oldu. Lütfen tekrar deneyin.');
+    } else if (error === 'unexpected') {
+      toast.error('Beklenmeyen bir hata oluştu. Lütfen tekrar deneyin.');
+    }
   }, [router]);
 
   const handleEmailLogin = async (e: React.FormEvent) => {
@@ -33,49 +40,25 @@ export default function Login() {
     setIsLoading(true);
 
     try {
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
+      const { data, error } = await authHelpers.signIn(email, password);
 
       if (error) {
-        toast.error(error.message);
+        const errorMessage = typeof error === 'string' ? error : 
+          (error as any)?.message === 'Invalid login credentials' 
+            ? 'Geçersiz e-posta veya şifre' 
+            : (error as any)?.message || 'Giriş hatası';
+        toast.error(errorMessage);
         return;
       }
 
-      if (data.user) {
+      if (data?.user) {
         toast.success('Giriş başarılı!');
         router.push('/');
       }
-    } catch (error) {
-      toast.error('Giriş yapılırken bir hata oluştu.');
+    } catch (error: any) {
+      toast.error(error?.message || 'Giriş yapılırken bir hata oluştu.');
     } finally {
       setIsLoading(false);
-    }
-  };
-
-  const handleDemoLogin = async () => {
-    setIsDemoLoading(true);
-
-    try {
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email: DEMO_CREDENTIALS.email,
-        password: DEMO_CREDENTIALS.password,
-      });
-
-      if (error) {
-        toast.error(error.message);
-        return;
-      }
-
-      if (data.user) {
-        toast.success('Demo hesabıyla giriş başarılı!');
-        router.push('/');
-      }
-    } catch (error) {
-      toast.error('Demo giriş yapılırken bir hata oluştu.');
-    } finally {
-      setIsDemoLoading(false);
     }
   };
 
@@ -83,18 +66,15 @@ export default function Login() {
     setIsGoogleLoading(true);
     
     try {
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
-        options: {
-          redirectTo: `${window.location.origin}/`
-        }
-      });
+      const { error } = await authHelpers.signInWithGoogle();
 
       if (error) {
-        toast.error(error.message);
+        const errorMessage = typeof error === 'string' ? error : (error as any)?.message || 'Google giriş hatası';
+        toast.error(errorMessage);
       }
-    } catch (error) {
-      toast.error('Google ile giriş yapılırken bir hata oluştu.');
+      // OAuth will redirect to callback page, no need to handle success here
+    } catch (error: any) {
+      toast.error(error?.message || 'Google ile giriş yapılırken bir hata oluştu.');
     } finally {
       setIsGoogleLoading(false);
     }
@@ -157,54 +137,11 @@ export default function Login() {
                 </p>
               </div>
 
-              {/* Demo Account Button */}
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.6, delay: 0.1 }}
-                className="mb-8"
-              >
-                <button
-                  onClick={handleDemoLogin}
-                  disabled={isDemoLoading}
-                  className="group/btn relative w-full overflow-hidden rounded-2xl bg-gradient-to-r from-blue-500 to-cyan-500 p-[2px] disabled:opacity-50 disabled:cursor-not-allowed hover:scale-105 transition-transform"
-                >
-                  <div className="relative bg-slate-900 rounded-2xl px-6 py-4 transition-all duration-300 group-hover/btn:bg-transparent">
-                    <div className="flex items-center justify-center gap-3">
-                      {isDemoLoading ? (
-                        <>
-                          <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                          <span className="text-white font-bold">Demo Yükleniyor...</span>
-                        </>
-                      ) : (
-                        <>
-                          <FiPlay className="w-5 h-5 text-white group-hover/btn:scale-110 transition-transform" />
-                          <span className="text-white font-bold">Demo Hesabıyla Test Et</span>
-                        </>
-                      )}
-                    </div>
-                  </div>
-                </button>
-                <p className="text-xs text-gray-400 mt-3 text-center">
-                  Kayıt olmadan hemen test edebilirsiniz • demo@tomigpt.com
-                </p>
-              </motion.div>
-
-              {/* Divider */}
-              <div className="relative mb-8">
-                <div className="absolute inset-0 flex items-center">
-                  <div className="w-full border-t border-slate-600/50"></div>
-                </div>
-                <div className="relative flex justify-center text-sm">
-                  <span className="px-4 bg-slate-900 text-gray-400">veya hesabınızla</span>
-                </div>
-              </div>
-
               {/* Google Login */}
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.6, delay: 0.2 }}
+                transition={{ duration: 0.6, delay: 0.1 }}
                 className="mb-8"
               >
                 <button
@@ -235,7 +172,7 @@ export default function Login() {
               <motion.form
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.6, delay: 0.3 }}
+                transition={{ duration: 0.6, delay: 0.2 }}
                 onSubmit={handleEmailLogin}
                 className="space-y-6"
               >
@@ -250,9 +187,9 @@ export default function Login() {
                       type="email"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
-                      required
-                      className="w-full pl-12 pr-4 py-4 bg-slate-800/50 border border-slate-600/50 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500/50 transition-all"
+                      className="w-full pl-12 pr-4 py-4 bg-slate-800/50 border border-slate-600/50 rounded-xl text-white placeholder-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all duration-300"
                       placeholder="ornek@email.com"
+                      required
                     />
                   </div>
                 </div>
@@ -268,47 +205,35 @@ export default function Login() {
                       type={showPassword ? 'text' : 'password'}
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
+                      className="w-full pl-12 pr-12 py-4 bg-slate-800/50 border border-slate-600/50 rounded-xl text-white placeholder-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all duration-300"
+                      placeholder="••••••••"
                       required
-                      className="w-full pl-12 pr-12 py-4 bg-slate-800/50 border border-slate-600/50 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500/50 transition-all"
-                      placeholder="Şifreniz"
                     />
                     <button
                       type="button"
                       onClick={() => setShowPassword(!showPassword)}
                       className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-white transition-colors"
                     >
-                      {showPassword ? (
-                        <FiEyeOff className="w-5 h-5" />
-                      ) : (
-                        <FiEye className="w-5 h-5" />
-                      )}
+                      {showPassword ? <FiEyeOff className="w-5 h-5" /> : <FiEye className="w-5 h-5" />}
                     </button>
                   </div>
                 </div>
 
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center">
-                    <input
-                      id="remember-me"
-                      type="checkbox"
-                      className="h-4 w-4 text-emerald-500 focus:ring-emerald-500/50 border-slate-600/50 rounded bg-slate-800/50"
-                    />
-                    <label htmlFor="remember-me" className="ml-3 block text-sm text-gray-300">
-                      Beni hatırla
-                    </label>
-                  </div>
                   <Link
                     href="/auth/forgot-password"
-                    className="text-sm text-emerald-400 hover:text-emerald-300 transition-colors"
+                    className="text-sm text-blue-400 hover:text-blue-300 transition-colors"
                   >
                     Şifremi unuttum
                   </Link>
                 </div>
 
-                <button
+                <motion.button
                   type="submit"
-                  disabled={!email || !password || isLoading}
-                  className="group/btn relative w-full overflow-hidden rounded-2xl bg-gradient-to-r from-emerald-500 via-blue-500 to-cyan-500 p-[2px] disabled:opacity-50 disabled:cursor-not-allowed hover:scale-105 transition-transform"
+                  disabled={isLoading}
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  className="group/btn relative w-full overflow-hidden rounded-2xl bg-gradient-to-r from-blue-500 to-emerald-500 p-[2px] disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <div className="relative bg-slate-900 rounded-2xl px-6 py-4 transition-all duration-300 group-hover/btn:bg-transparent">
                     <div className="flex items-center justify-center gap-3">
@@ -320,12 +245,12 @@ export default function Login() {
                       ) : (
                         <>
                           <span className="text-white font-bold">Giriş Yap</span>
-                          <FiArrowRight className="w-5 h-5 text-white group-hover/btn:scale-110 transition-transform" />
+                          <FiArrowRight className="w-5 h-5 text-white group-hover/btn:translate-x-1 transition-transform" />
                         </>
                       )}
                     </div>
                   </div>
-                </button>
+                </motion.button>
               </motion.form>
 
               {/* Register Link */}
@@ -333,15 +258,15 @@ export default function Login() {
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 transition={{ duration: 0.6, delay: 0.4 }}
-                className="text-center mt-8"
+                className="mt-8 text-center"
               >
                 <p className="text-gray-400">
                   Hesabınız yok mu?{' '}
                   <Link
                     href="/auth/register"
-                    className="text-emerald-400 hover:text-emerald-300 font-medium transition-colors"
+                    className="text-blue-400 hover:text-blue-300 font-medium transition-colors"
                   >
-                    Hemen kayıt olun
+                    Kayıt Ol
                   </Link>
                 </p>
               </motion.div>

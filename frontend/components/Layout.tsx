@@ -1,330 +1,363 @@
 import React, { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { 
+  FiMenu, 
+  FiX, 
+  FiHome, 
+  FiTrendingUp, 
+  FiClock, 
+  FiCreditCard, 
+  FiUser, 
+  FiSettings, 
+  FiLogOut, 
+  FiGlobe,
+  FiChevronDown,
+  FiShield,
+  FiLogIn,
+  FiUserPlus
+} from 'react-icons/fi';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
-import { supabase } from '../lib/supabase';
-import { User, AuthChangeEvent, Session } from '@supabase/supabase-js';
-import { motion, AnimatePresence } from 'framer-motion';
-import { FiMenu, FiX, FiUser, FiSettings, FiLogOut, FiHome, FiBarChart, FiClock, FiCreditCard, FiCheck, FiGlobe } from 'react-icons/fi';
+import { authHelpers, supabase } from '../lib/supabase';
+import { User } from '@supabase/supabase-js';
+import { toast } from 'react-hot-toast';
 
 interface LayoutProps {
   children: React.ReactNode;
 }
 
 export default function Layout({ children }: LayoutProps) {
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
+  const [language, setLanguage] = useState<string>('tr');
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
-  const [showProfileMenu, setShowProfileMenu] = useState(false);
-  const [showMobileMenu, setShowMobileMenu] = useState(false);
-  const [showLanguageMenu, setShowLanguageMenu] = useState(false);
-  const [language, setLanguage] = useState<'tr' | 'en'>('tr');
   const router = useRouter();
 
+  // Language change function
+  const handleLanguageChange = (newLanguage: string) => {
+    setLanguage(newLanguage);
+    localStorage.setItem('language', newLanguage);
+    
+    // Dispatch custom event for other components
+    window.dispatchEvent(new CustomEvent('languageChange', {
+      detail: { language: newLanguage }
+    }));
+  };
+
+  // Auth state management
   useEffect(() => {
-    getUser();
-    
-    // Load language preference from localStorage
-    const savedLanguage = localStorage.getItem('language') as 'tr' | 'en';
-    if (savedLanguage) {
-      setLanguage(savedLanguage);
-    }
-    
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event: AuthChangeEvent, session: Session | null) => {
-        setUser(session?.user ?? null);
+    // Get initial session
+    const getInitialSession = async () => {
+      try {
+        const { session } = await authHelpers.getCurrentSession();
+        setUser(session?.user || null);
+      } catch (error) {
+        console.error('Error getting initial session:', error);
+      } finally {
         setLoading(false);
+      }
+    };
+
+    getInitialSession();
+
+    // Listen for auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        setUser(session?.user || null);
+        setLoading(false);
+
+        if (event === 'SIGNED_IN') {
+          toast.success('Başarıyla giriş yapıldı!');
+        } else if (event === 'SIGNED_OUT') {
+          toast.success('Başarıyla çıkış yapıldı!');
+        }
       }
     );
 
     return () => subscription.unsubscribe();
   }, []);
 
-  const getUser = async () => {
+  // Load saved language preference
+  useEffect(() => {
+    const savedLanguage = localStorage.getItem('language') || 'tr';
+    setLanguage(savedLanguage);
+  }, []);
+
+  const handleSignOut = async () => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      setUser(user);
-    } catch (error) {
-      console.error('Error fetching user:', error);
-    } finally {
-      setLoading(false);
+      await authHelpers.signOut();
+      setIsProfileMenuOpen(false);
+      router.push('/');
+    } catch (error: any) {
+      toast.error(error?.message || 'Çıkış yapılırken bir hata oluştu.');
     }
   };
 
-  const signOut = async () => {
-    router.push('/auth/logout');
-  };
-
-  const getUserInitials = (user: User | null) => {
-    if (!user) return 'U';
-    
-    const name = user.user_metadata?.full_name || user.email || '';
-    const parts = name.split(' ');
-    
-    if (parts.length >= 2) {
-      return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
-    }
-    
-    return name.slice(0, 2).toUpperCase();
-  };
-
-  const changeLanguage = (lang: 'tr' | 'en') => {
-    setLanguage(lang);
-    localStorage.setItem('language', lang);
-    setShowLanguageMenu(false);
-    // Trigger window event to notify all components
-    window.dispatchEvent(new CustomEvent('languageChange', { detail: lang }));
-  };
-
+  // Translation function
   const t = (tr: string, en: string) => language === 'tr' ? tr : en;
 
+  // Navigation items
   const navigation = [
-    { name: t('Dashboard', 'Dashboard'), href: '/', icon: FiHome },
-    { name: t('Analiz', 'Analysis'), href: '/analyze', icon: FiBarChart },
+    { name: t('Anasayfa', 'Home'), href: '/', icon: FiHome },
+    { name: t('Analiz', 'Analyze'), href: '/analyze', icon: FiTrendingUp },
     { name: t('Geçmiş', 'History'), href: '/history', icon: FiClock },
     { name: t('Abonelik', 'Subscription'), href: '/subscription', icon: FiCreditCard },
-  ];
-
-  const profileMenuItems = [
-    { name: t('Profil', 'Profile'), href: '/profile', icon: FiUser },
     { name: t('Ayarlar', 'Settings'), href: '/settings', icon: FiSettings },
   ];
 
+  const profileMenuItems = user ? [
+    { name: t('Profil', 'Profile'), href: '/profile', icon: FiUser },
+    { name: t('Ayarlar', 'Settings'), href: '/settings', icon: FiSettings },
+    { name: t('Çıkış Yap', 'Sign Out'), onClick: handleSignOut, icon: FiLogOut, isButton: true },
+  ] : [
+    { name: t('Giriş Yap', 'Sign In'), href: '/auth/login', icon: FiLogIn },
+    { name: t('Kayıt Ol', 'Register'), href: '/auth/register', icon: FiUserPlus },
+  ];
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-16 h-16 border-4 border-blue-500/30 border-t-blue-500 rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-gray-400">{t('Yükleniyor...', 'Loading...')}</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
-      {/* Background Effects */}
-      <div className="fixed inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute -top-40 -right-40 w-80 h-80 bg-green-500/20 rounded-full blur-3xl animate-float"></div>
-        <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-emerald-500/20 rounded-full blur-3xl animate-float-reverse"></div>
-      </div>
-
-      {/* Navigation */}
-      <nav className="glass-card border-b border-white/10 sticky top-0 z-50">
+      {/* Desktop Navigation */}
+      <nav className="hidden lg:block fixed top-0 left-0 right-0 z-50 bg-slate-900/80 backdrop-blur-xl border-b border-white/10">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             {/* Logo */}
-            <Link href="/" className="flex items-center space-x-2">
-              <div className="text-2xl font-bold bg-gradient-to-r from-green-400 to-emerald-400 bg-clip-text text-transparent">
-                TomiGPT
+            <Link href="/" className="flex items-center gap-3 group">
+              <div className="p-2 bg-gradient-to-r from-blue-500 to-cyan-500 rounded-xl group-hover:scale-110 transition-transform">
+                <FiTrendingUp className="w-6 h-6 text-white" />
               </div>
+              <span className="text-xl font-bold text-white">TomiGPT</span>
             </Link>
 
-            {/* Desktop Navigation */}
-            <div className="hidden md:flex items-center space-x-8">
+            {/* Navigation Links */}
+            <div className="flex items-center space-x-8">
               {navigation.map((item) => (
                 <Link
                   key={item.name}
                   href={item.href}
-                  className={`flex items-center space-x-2 px-3 py-2 rounded-lg transition-all duration-200 ${
+                  className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
                     router.pathname === item.href
-                      ? 'bg-green-500/20 text-green-400 shadow-lg shadow-green-500/20'
-                      : 'text-gray-300 hover:text-white hover:bg-white/10'
+                      ? 'text-blue-400 bg-blue-500/10'
+                      : 'text-gray-300 hover:text-white hover:bg-white/5'
                   }`}
                 >
                   <item.icon className="w-4 h-4" />
-                  <span>{item.name}</span>
+                  {item.name}
                 </Link>
               ))}
             </div>
 
-            {/* Profile/Auth Section */}
-            <div className="flex items-center space-x-4">
+            {/* Right Side */}
+            <div className="flex items-center gap-4">
               {/* Language Selector */}
-              <div className="relative">
-                <motion.button
-                  onClick={() => setShowLanguageMenu(!showLanguageMenu)}
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                  className="flex items-center space-x-2 px-3 py-2 glass-card rounded-lg hover:bg-white/10 transition-all duration-200 border border-white/10"
+              <div className="flex items-center bg-slate-800/50 border border-white/10 rounded-lg p-1">
+                <button
+                  onClick={() => handleLanguageChange('tr')}
+                  className={`px-3 py-1 rounded-md text-sm font-medium transition-all duration-200 ${
+                    language === 'tr'
+                      ? 'bg-blue-500 text-white'
+                      : 'text-gray-400 hover:text-white'
+                  }`}
                 >
-                  <FiGlobe className="w-4 h-4 text-gray-400" />
-                  <span className="text-gray-300 text-sm font-medium">
-                    {language.toUpperCase()}
-                  </span>
-                </motion.button>
+                  🇹🇷
+                </button>
+                <button
+                  onClick={() => handleLanguageChange('en')}
+                  className={`px-3 py-1 rounded-md text-sm font-medium transition-all duration-200 ${
+                    language === 'en'
+                      ? 'bg-blue-500 text-white'
+                      : 'text-gray-400 hover:text-white'
+                  }`}
+                >
+                  🇺🇸
+                </button>
+              </div>
 
+              {/* Profile Menu */}
+              <div className="relative">
+                <button
+                  onClick={() => setIsProfileMenuOpen(!isProfileMenuOpen)}
+                  className="flex items-center gap-2 px-3 py-2 bg-slate-800/50 border border-white/10 rounded-lg text-gray-300 hover:text-white hover:bg-slate-700/50 transition-all duration-200"
+                >
+                  {user ? (
+                    <>
+                      <div className="w-6 h-6 bg-gradient-to-r from-blue-500 to-cyan-500 rounded-full flex items-center justify-center">
+                        <span className="text-xs font-bold text-white">
+                          {user.email?.charAt(0).toUpperCase()}
+                        </span>
+                      </div>
+                      <span className="text-sm font-medium">{user.email}</span>
+                    </>
+                  ) : (
+                    <>
+                      <FiUser className="w-4 h-4" />
+                      <span className="text-sm font-medium">{t('Hesap', 'Account')}</span>
+                    </>
+                  )}
+                  <FiChevronDown className="w-4 h-4" />
+                </button>
+
+                {/* Profile Dropdown */}
                 <AnimatePresence>
-                  {showLanguageMenu && (
+                  {isProfileMenuOpen && (
                     <motion.div
-                      initial={{ opacity: 0, y: -10, scale: 0.95 }}
-                      animate={{ opacity: 1, y: 0, scale: 1 }}
-                      exit={{ opacity: 0, y: -10, scale: 0.95 }}
-                      transition={{ duration: 0.2 }}
-                      className="absolute right-0 mt-2 w-32 glass-card border border-green-500/20 rounded-lg shadow-xl backdrop-blur-xl"
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: 10 }}
+                      className="absolute right-0 mt-2 w-64 bg-slate-800/95 backdrop-blur-xl border border-white/10 rounded-xl shadow-xl z-[9999]"
                     >
-                      <div className="py-2">
-                        <button
-                          onClick={() => changeLanguage('tr')}
-                          className={`flex items-center space-x-2 px-4 py-2 text-sm w-full text-left transition-all duration-200 ${
-                            language === 'tr'
-                              ? 'bg-green-500/20 text-green-400'
-                              : 'text-gray-300 hover:text-white hover:bg-white/10'
-                          }`}
-                        >
-                          <span>🇹🇷</span>
-                          <span>Türkçe</span>
-                          {language === 'tr' && <FiCheck className="w-4 h-4 ml-auto" />}
-                        </button>
-                        <button
-                          onClick={() => changeLanguage('en')}
-                          className={`flex items-center space-x-2 px-4 py-2 text-sm w-full text-left transition-all duration-200 ${
-                            language === 'en'
-                              ? 'bg-green-500/20 text-green-400'
-                              : 'text-gray-300 hover:text-white hover:bg-white/10'
-                          }`}
-                        >
-                          <span>🇺🇸</span>
-                          <span>English</span>
-                          {language === 'en' && <FiCheck className="w-4 h-4 ml-auto" />}
-                        </button>
+                      <div className="p-2">
+                        {user && (
+                          <div className="px-3 py-2 border-b border-white/10 mb-2">
+                            <p className="text-sm font-medium text-white">{user.email}</p>
+                            <p className="text-xs text-gray-400">{t('Pro Üye', 'Pro Member')}</p>
+                          </div>
+                        )}
+                        {profileMenuItems.map((item, index) => (
+                          item.isButton ? (
+                            <button
+                              key={index}
+                              onClick={item.onClick}
+                              className="w-full flex items-center gap-3 px-3 py-2 text-sm text-gray-300 hover:text-white hover:bg-white/5 rounded-lg transition-all duration-200"
+                            >
+                              <item.icon className="w-4 h-4" />
+                              {item.name}
+                            </button>
+                          ) : (
+                            <Link
+                              key={index}
+                              href={item.href || '#'}
+                              onClick={() => setIsProfileMenuOpen(false)}
+                              className="flex items-center gap-3 px-3 py-2 text-sm text-gray-300 hover:text-white hover:bg-white/5 rounded-lg transition-all duration-200"
+                            >
+                              <item.icon className="w-4 h-4" />
+                              {item.name}
+                            </Link>
+                          )
+                        ))}
                       </div>
                     </motion.div>
                   )}
                 </AnimatePresence>
               </div>
+            </div>
+          </div>
+        </div>
+      </nav>
 
-              {loading ? (
-                <div className="w-10 h-10 rounded-full bg-white/10 animate-pulse"></div>
-              ) : user ? (
-                <div className="relative">
-                  <motion.button
-                    onClick={() => setShowProfileMenu(!showProfileMenu)}
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                    className="flex items-center space-x-3 px-3 py-2 glass-card rounded-lg hover:bg-white/10 transition-all duration-200 border border-white/10"
-                  >
-                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-green-400 to-emerald-400 flex items-center justify-center text-white font-bold text-sm shadow-lg">
-                      {getUserInitials(user)}
-                    </div>
-                    <div className="hidden sm:block text-left">
-                      <div className="text-gray-300 text-sm font-medium">
-                        {user.user_metadata?.full_name || user.email?.split('@')[0]}
-                      </div>
-                      <div className="text-gray-500 text-xs">
-                        {user.email?.split('@')[0]}
-                      </div>
-                    </div>
-                    <FiUser className="w-4 h-4 text-gray-400" />
-                  </motion.button>
+      {/* Mobile Navigation */}
+      <nav className="lg:hidden fixed top-0 left-0 right-0 z-50 bg-slate-900/80 backdrop-blur-xl border-b border-white/10">
+        <div className="px-4 sm:px-6">
+          <div className="flex justify-between items-center h-16">
+            {/* Logo */}
+            <Link href="/" className="flex items-center gap-2">
+              <div className="p-2 bg-gradient-to-r from-blue-500 to-cyan-500 rounded-lg">
+                <FiTrendingUp className="w-5 h-5 text-white" />
+              </div>
+              <span className="text-lg font-bold text-white">TomiGPT</span>
+            </Link>
 
-                  <AnimatePresence>
-                    {showProfileMenu && (
-                      <motion.div
-                        initial={{ opacity: 0, y: -10, scale: 0.95 }}
-                        animate={{ opacity: 1, y: 0, scale: 1 }}
-                        exit={{ opacity: 0, y: -10, scale: 0.95 }}
-                        transition={{ duration: 0.2 }}
-                        className="absolute right-0 mt-2 w-56 glass-card border border-green-500/20 rounded-lg shadow-xl backdrop-blur-xl"
-                      >
-                        <div className="py-2">
-                          {/* User Info Header */}
-                          <div className="px-4 py-3 border-b border-white/10">
-                            <div className="flex items-center space-x-3">
-                              <div className="w-12 h-12 rounded-full bg-gradient-to-br from-green-400 to-emerald-400 flex items-center justify-center text-white font-bold">
-                                {getUserInitials(user)}
-                              </div>
-                              <div>
-                                <div className="text-white font-medium">
-                                  {user.user_metadata?.full_name || t('Kullanıcı', 'User')}
-                                </div>
-                                <div className="text-gray-400 text-sm">
-                                  {user.email}
-                                </div>
-                              </div>
-                            </div>
-                          </div>
+            {/* Right Side */}
+            <div className="flex items-center gap-3">
+              {/* Language Selector */}
+              <div className="flex items-center bg-slate-800/50 border border-white/10 rounded-lg p-1">
+                <button
+                  onClick={() => handleLanguageChange('tr')}
+                  className={`px-2 py-1 rounded text-xs font-medium transition-all duration-200 ${
+                    language === 'tr'
+                      ? 'bg-blue-500 text-white'
+                      : 'text-gray-400 hover:text-white'
+                  }`}
+                >
+                  🇹🇷
+                </button>
+                <button
+                  onClick={() => handleLanguageChange('en')}
+                  className={`px-2 py-1 rounded text-xs font-medium transition-all duration-200 ${
+                    language === 'en'
+                      ? 'bg-blue-500 text-white'
+                      : 'text-gray-400 hover:text-white'
+                  }`}
+                >
+                  🇺🇸
+                </button>
+              </div>
 
-                          {/* Menu Items */}
-                          <div className="py-2">
-                            {profileMenuItems.map((item) => (
-                              <motion.div key={item.name} whileHover={{ x: 4 }}>
-                                <Link
-                                  href={item.href}
-                                  className="flex items-center space-x-3 px-4 py-3 text-gray-300 hover:text-white hover:bg-white/10 transition-all duration-200"
-                                  onClick={() => setShowProfileMenu(false)}
-                                >
-                                  <item.icon className="w-5 h-5" />
-                                  <span className="font-medium">{item.name}</span>
-                                </Link>
-                              </motion.div>
-                            ))}
-                          </div>
-
-                          {/* Logout */}
-                          <div className="border-t border-white/10 py-2">
-                            <motion.button
-                              onClick={signOut}
-                              whileHover={{ x: 4 }}
-                              className="flex items-center space-x-3 px-4 py-3 text-red-400 hover:text-red-300 hover:bg-red-500/10 transition-all duration-200 w-full text-left"
-                            >
-                              <FiLogOut className="w-5 h-5" />
-                              <span className="font-medium">{t('Çıkış Yap', 'Logout')}</span>
-                            </motion.button>
-                          </div>
-                        </div>
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
-                </div>
-              ) : (
-                <div className="flex items-center space-x-3">
-                  <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-                    <Link
-                      href="/auth/login"
-                      className="px-4 py-2 text-gray-300 hover:text-white transition-all duration-200 font-medium"
-                    >
-                      {t('Giriş', 'Login')}
-                    </Link>
-                  </motion.div>
-                  <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-                    <Link
-                      href="/auth/register"
-                      className="glass-button px-6 py-2 bg-gradient-to-r from-green-500 to-emerald-500 text-white rounded-lg hover:shadow-lg hover:shadow-green-500/20 transition-all duration-200 font-medium"
-                    >
-                      {t('Kayıt Ol', 'Sign Up')}
-                    </Link>
-                  </motion.div>
-                </div>
-              )}
-
-              {/* Mobile menu button */}
+              {/* Mobile Menu Button */}
               <button
-                onClick={() => setShowMobileMenu(!showMobileMenu)}
-                className="md:hidden p-2 rounded-lg hover:bg-white/10 transition-all duration-200"
+                onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+                className="p-2 bg-slate-800/50 border border-white/10 rounded-lg text-gray-300 hover:text-white transition-colors"
               >
-                {showMobileMenu ? (
-                  <FiX className="w-6 h-6 text-gray-300" />
-                ) : (
-                  <FiMenu className="w-6 h-6 text-gray-300" />
-                )}
+                {isMobileMenuOpen ? <FiX className="w-5 h-5" /> : <FiMenu className="w-5 h-5" />}
               </button>
             </div>
           </div>
         </div>
 
-        {/* Mobile Navigation */}
+        {/* Mobile Menu */}
         <AnimatePresence>
-          {showMobileMenu && (
+          {isMobileMenuOpen && (
             <motion.div
               initial={{ opacity: 0, height: 0 }}
               animate={{ opacity: 1, height: 'auto' }}
               exit={{ opacity: 0, height: 0 }}
-              className="md:hidden border-t border-white/10 bg-slate-900/95 backdrop-blur-sm"
+              className="bg-slate-900/95 backdrop-blur-xl border-t border-white/10"
             >
-              <div className="px-4 py-2 space-y-2">
+              <div className="px-4 py-4 space-y-2">
                 {navigation.map((item) => (
                   <Link
                     key={item.name}
                     href={item.href}
-                    className={`flex items-center space-x-3 px-3 py-3 rounded-lg transition-all duration-200 ${
+                    onClick={() => setIsMobileMenuOpen(false)}
+                    className={`flex items-center gap-3 px-3 py-3 rounded-lg transition-all duration-200 ${
                       router.pathname === item.href
-                        ? 'bg-green-500/20 text-green-400'
-                        : 'text-gray-300 hover:text-white hover:bg-white/10'
+                        ? 'text-blue-400 bg-blue-500/10'
+                        : 'text-gray-300 hover:text-white hover:bg-white/5'
                     }`}
-                    onClick={() => setShowMobileMenu(false)}
                   >
                     <item.icon className="w-5 h-5" />
-                    <span>{item.name}</span>
+                    {item.name}
                   </Link>
                 ))}
+                
+                <div className="border-t border-white/10 pt-2 mt-4">
+                  {profileMenuItems.map((item, index) => (
+                    item.isButton ? (
+                      <button
+                        key={index}
+                        onClick={() => {
+                          item.onClick?.();
+                          setIsMobileMenuOpen(false);
+                        }}
+                        className="w-full flex items-center gap-3 px-3 py-3 text-gray-300 hover:text-white hover:bg-white/5 rounded-lg transition-all duration-200"
+                      >
+                        <item.icon className="w-5 h-5" />
+                        {item.name}
+                      </button>
+                    ) : (
+                      <Link
+                        key={index}
+                        href={item.href || '#'}
+                        onClick={() => setIsMobileMenuOpen(false)}
+                        className="flex items-center gap-3 px-3 py-3 text-gray-300 hover:text-white hover:bg-white/5 rounded-lg transition-all duration-200"
+                      >
+                        <item.icon className="w-5 h-5" />
+                        {item.name}
+                      </Link>
+                    )
+                  ))}
+                </div>
               </div>
             </motion.div>
           )}
@@ -332,7 +365,20 @@ export default function Layout({ children }: LayoutProps) {
       </nav>
 
       {/* Main Content */}
-      <main className="relative">{children}</main>
+      <main className="pt-16">
+        {children}
+      </main>
+
+      {/* Click outside to close menus */}
+      {(isMobileMenuOpen || isProfileMenuOpen) && (
+        <div
+          className="fixed inset-0 z-40 bg-black/20"
+          onClick={() => {
+            setIsMobileMenuOpen(false);
+            setIsProfileMenuOpen(false);
+          }}
+        />
+      )}
     </div>
   );
 } 
